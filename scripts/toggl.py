@@ -102,7 +102,7 @@ def insert_to_notion():
                         project_properties["Client"] = {
                             "relation": [{"id": id} for id in item.get("Client")]
                         }
-                    item["Project"] = [
+                    item["项目"] = [
                         notion_helper.get_relation_id(
                             project,
                             notion_helper.project_database_id,
