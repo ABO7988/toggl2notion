@@ -81,7 +81,7 @@ def insert_to_notion():
                     )
                     project = response.json().get("name")
                     emoji, project = split_emoji_from_string(project)
-                    item["标题"] = project
+                    item["toggl项目"] = project
                     client_id = response.json().get("cid")
                     #默认金币设置为1
                     project_properties = {"金币":{"number": 1}}
@@ -111,7 +111,7 @@ def insert_to_notion():
                         )
                     ]
                 if task.get("description") is not None:
-                    item["备注"] = task.get("description")
+                    item["toggl任务"] = task.get("description")
                 properties = utils.get_properties(item, time_properties_type_dict)
                 parent = {
                     "database_id": notion_helper.time_database_id,
