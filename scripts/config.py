@@ -16,7 +16,7 @@ time_properties_type_dict = {
     "Id":NUMBER,
     "备注":RICH_TEXT,
     "标签":RELATION,
-    "Project":RELATION,
+    "项目":RELATION,
     "Client":RELATION,
 }
 
