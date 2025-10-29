@@ -11,12 +11,12 @@ SELECT = "select"
 MULTI_SELECT = "multi_select"
 
 time_properties_type_dict = {
-    "标题":TITLE,
+    "toggl项目":TITLE,
     "时间":DATE,
     "Id":NUMBER,
-    "备注":RICH_TEXT,
+    "toggl任务":RICH_TEXT,
     "标签":RELATION,
-    "Project":RELATION,
+    "项目":RELATION,
     "Client":RELATION,
 }
 
