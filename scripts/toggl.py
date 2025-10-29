@@ -185,7 +185,6 @@ def insert_to_notion():
         print(f"\n=== API 调用统计 ===")
         print(f"项目缓存数量: {len(project_cache)} 个不同项目")
         print(f"客户端缓存数量: {len(client_cache)} 个不同客户端")
-        print(f"通过缓存节省了大量 API 调用！")
     else:
         print(f"get toggl data error {response.text}")
 
