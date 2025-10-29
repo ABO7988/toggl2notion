@@ -356,7 +356,7 @@ def split_emoji_from_string(s):
         return l[0].get("emoji"), s[l[0].get("match_end"):]
     else:
         # 如果字符串不是以emoji开头
-        return '⏰', s
+        return '📂', s
 
 def get_embed(url):
     return {"type": "embed", "embed": {"url": url}}
