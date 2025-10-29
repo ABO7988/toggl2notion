@@ -32,7 +32,7 @@ class NotionHelper:
         "YEAR_DATABASE_NAME": "年",
         "ALL_DATABASE_NAME": "全部",
         "CLIENT_DATABASE_NAME": "Client",
-        "PROJECT_DATABASE_NAME": "Project",
+        "PROJECT_DATABASE_NAME": "项目",
         "TAG_DATABASE_NAME": "标签",
     }
     database_id_dict = {}
