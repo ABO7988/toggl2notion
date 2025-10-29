@@ -18,6 +18,19 @@ def insert_to_notion():
     project_cache = {}
     client_cache = {}
     
+    # 检查必需的数据库配置
+    if not notion_helper.time_database_id:
+        print("错误: 时间记录数据库未配置！请检查 Notion 配置。")
+        return
+    
+    # 打印数据库配置状态
+    print(f"=== 数据库配置状态 ===")
+    print(f"时间记录数据库: {'✓ 已配置' if notion_helper.time_database_id else '✗ 未配置'}")
+    print(f"项目数据库: {'✓ 已配置' if notion_helper.project_database_id else '✗ 未配置'}")
+    print(f"Client 数据库: {'✓ 已配置' if notion_helper.client_database_id else '✗ 未配置'}")
+    print(f"标签数据库: {'✓ 已配置' if notion_helper.tag_database_id else '✗ 未配置'}")
+    print()
+    
     # 获取当前UTC时间
     now = pendulum.now("Asia/Shanghai")
     # toggl只支持90天的数据
@@ -55,13 +68,15 @@ def insert_to_notion():
             if task.get("pid") is not None and task.get("stop") is not None:
                 item = {}
                 tags = task.get("tags")
-                if tags:
+                if tags and notion_helper.tag_database_id:
                     item["标签"] = [
                         notion_helper.get_relation_id(
                             tag, notion_helper.tag_database_id, get_icon(TAG_ICON_URL)
                         )
                         for tag in tags
                     ]
+                elif tags and not notion_helper.tag_database_id:
+                    print(f"警告: 标签数据库未配置，跳过标签关系")
                 id = task.get("id")
                 item["Id"] = id
                 project_id = task.get("project_id")
@@ -98,7 +113,7 @@ def insert_to_notion():
                         continue
                     
                     emoji, project = split_emoji_from_string(project)
-                    item["标题"] = project
+                    item["toggl项目"] = project
                     client_id = project_data.get("cid")
                     #默认金币设置为1
                     project_properties = {"金币":{"number": 1}}
@@ -125,28 +140,36 @@ def insert_to_notion():
                             client = client_data.get("name")
                             if client:
                                 client_emoji, client = split_emoji_from_string(client)
-                                item["Client"] = [
-                                    notion_helper.get_relation_id(
-                                        client,
-                                        notion_helper.client_database_id,
-                                        {"type": "emoji", "emoji": client_emoji},
-                                    )
-                                ]
-                                project_properties["Client"] = {
-                                    "relation": [{"id": id} for id in item.get("Client")]
-                                }
+                                # 检查 Client 数据库是否存在
+                                if notion_helper.client_database_id:
+                                    item["Client"] = [
+                                        notion_helper.get_relation_id(
+                                            client,
+                                            notion_helper.client_database_id,
+                                            {"type": "emoji", "emoji": client_emoji},
+                                        )
+                                    ]
+                                    project_properties["Client"] = {
+                                        "relation": [{"id": id} for id in item.get("Client")]
+                                    }
+                                else:
+                                    print(f"警告: Client 数据库未配置，跳过客户端关系")
                             else:
                                 print(f"Client name not found for client_id {client_id}")
-                    item["Project"] = [
-                        notion_helper.get_relation_id(
-                            project,
-                            notion_helper.project_database_id,
-                            {"type": "emoji", "emoji": emoji},
-                            properties=project_properties,
-                        )
-                    ]
+                    # 检查项目数据库是否存在
+                    if notion_helper.project_database_id:
+                        item["项目"] = [
+                            notion_helper.get_relation_id(
+                                project,
+                                notion_helper.project_database_id,
+                                {"type": "emoji", "emoji": emoji},
+                                properties=project_properties,
+                            )
+                        ]
+                    else:
+                        print(f"警告: 项目数据库未配置，跳过项目关系")
                 if task.get("description") is not None:
-                    item["备注"] = task.get("description")
+                    item["toggl任务"] = task.get("description")
                 properties = utils.get_properties(item, time_properties_type_dict)
                 parent = {
                     "database_id": notion_helper.time_database_id,
