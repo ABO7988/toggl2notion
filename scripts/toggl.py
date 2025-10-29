@@ -41,7 +41,11 @@ def insert_to_notion():
     )
     print(f"Response : {response.text}")
     if response.ok:
-        time_entries = response.json()
+        try:
+            time_entries = response.json()
+        except (requests.exceptions.JSONDecodeError, ValueError) as e:
+            print(f"Failed to parse time entries JSON. Status: {response.status_code}, Response: {response.text}")
+            return
         time_entries.sort(key=lambda x: x["start"], reverse=False)
         for task in time_entries:
             if task.get("pid") is not None and task.get("stop") is not None:
@@ -72,7 +76,12 @@ def insert_to_notion():
                         print(f"Failed to get project info: {response.status_code}, {response.text}")
                         continue
                     
-                    project_data = response.json()
+                    try:
+                        project_data = response.json()
+                    except (requests.exceptions.JSONDecodeError, ValueError) as e:
+                        print(f"Failed to parse project JSON for project_id {project_id}. Status: {response.status_code}, Response: {response.text}")
+                        continue
+                    
                     project = project_data.get("name")
                     if not project:
                         print(f"Project name not found for project_id {project_id}")
@@ -89,22 +98,28 @@ def insert_to_notion():
                             auth=auth,
                         )
                         if response.ok:
-                            client_data = response.json()
-                            client = client_data.get("name")
-                            if client:
-                                client_emoji, client = split_emoji_from_string(client)
-                                item["Client"] = [
-                                    notion_helper.get_relation_id(
-                                        client,
-                                        notion_helper.client_database_id,
-                                        {"type": "emoji", "emoji": client_emoji},
-                                    )
-                                ]
-                                project_properties["Client"] = {
-                                    "relation": [{"id": id} for id in item.get("Client")]
-                                }
-                            else:
-                                print(f"Client name not found for client_id {client_id}")
+                            try:
+                                client_data = response.json()
+                            except (requests.exceptions.JSONDecodeError, ValueError) as e:
+                                print(f"Failed to parse client JSON for client_id {client_id}. Status: {response.status_code}, Response: {response.text}")
+                                client_data = None
+                            
+                            if client_data:
+                                client = client_data.get("name")
+                                if client:
+                                    client_emoji, client = split_emoji_from_string(client)
+                                    item["Client"] = [
+                                        notion_helper.get_relation_id(
+                                            client,
+                                            notion_helper.client_database_id,
+                                            {"type": "emoji", "emoji": client_emoji},
+                                        )
+                                    ]
+                                    project_properties["Client"] = {
+                                        "relation": [{"id": id} for id in item.get("Client")]
+                                    }
+                                else:
+                                    print(f"Client name not found for client_id {client_id}")
                         else:
                             print(f"Failed to get client info: {response.status_code}, {response.text}")
                     item["Project"] = [
