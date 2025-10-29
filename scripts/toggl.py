@@ -68,10 +68,19 @@ def insert_to_notion():
                         f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/projects/{project_id}",
                         auth=auth,
                     )
-                    project = response.json().get("name")
+                    if not response.ok:
+                        print(f"Failed to get project info: {response.status_code}, {response.text}")
+                        continue
+                    
+                    project_data = response.json()
+                    project = project_data.get("name")
+                    if not project:
+                        print(f"Project name not found for project_id {project_id}")
+                        continue
+                    
                     emoji, project = split_emoji_from_string(project)
                     item["标题"] = project
-                    client_id = response.json().get("cid")
+                    client_id = project_data.get("cid")
                     #默认金币设置为1
                     project_properties = {"金币":{"number": 1}}
                     if client_id:
@@ -79,18 +88,25 @@ def insert_to_notion():
                             f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/clients/{client_id}",
                             auth=auth,
                         )
-                        client = response.json().get("name")
-                        client_emoji, client = split_emoji_from_string(client)
-                        item["Client"] = [
-                            notion_helper.get_relation_id(
-                                client,
-                                notion_helper.client_database_id,
-                                {"type": "emoji", "emoji": client_emoji},
-                            )
-                        ]
-                        project_properties["Client"] = {
-                            "relation": [{"id": id} for id in item.get("Client")]
-                        }
+                        if response.ok:
+                            client_data = response.json()
+                            client = client_data.get("name")
+                            if client:
+                                client_emoji, client = split_emoji_from_string(client)
+                                item["Client"] = [
+                                    notion_helper.get_relation_id(
+                                        client,
+                                        notion_helper.client_database_id,
+                                        {"type": "emoji", "emoji": client_emoji},
+                                    )
+                                ]
+                                project_properties["Client"] = {
+                                    "relation": [{"id": id} for id in item.get("Client")]
+                                }
+                            else:
+                                print(f"Client name not found for client_id {client_id}")
+                        else:
+                            print(f"Failed to get client info: {response.status_code}, {response.text}")
                     item["Project"] = [
                         notion_helper.get_relation_id(
                             project,
