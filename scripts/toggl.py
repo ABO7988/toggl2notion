@@ -14,6 +14,10 @@ load_dotenv()
 
 
 def insert_to_notion():
+    # 缓存字典，避免重复请求相同的项目和客户端信息
+    project_cache = {}
+    client_cache = {}
+    
     # 获取当前UTC时间
     now = pendulum.now("Asia/Shanghai")
     # toggl只支持90天的数据
@@ -68,19 +72,25 @@ def insert_to_notion():
                     start = start.in_timezone("Asia/Shanghai").int_timestamp
                     stop = stop.in_timezone("Asia/Shanghai").int_timestamp
                     item["时间"] = (start, stop)
-                    response = requests.get(
-                        f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/projects/{project_id}",
-                        auth=auth,
-                    )
-                    if not response.ok:
-                        print(f"Failed to get project info: {response.status_code}, {response.text}")
-                        continue
                     
-                    try:
-                        project_data = response.json()
-                    except (requests.exceptions.JSONDecodeError, ValueError) as e:
-                        print(f"Failed to parse project JSON for project_id {project_id}. Status: {response.status_code}, Response: {response.text}")
-                        continue
+                    # 使用缓存，避免重复请求相同的项目
+                    if project_id not in project_cache:
+                        response = requests.get(
+                            f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/projects/{project_id}",
+                            auth=auth,
+                        )
+                        if not response.ok:
+                            print(f"Failed to get project info: {response.status_code}, {response.text}")
+                            continue
+                        
+                        try:
+                            project_data = response.json()
+                            project_cache[project_id] = project_data
+                        except (requests.exceptions.JSONDecodeError, ValueError) as e:
+                            print(f"Failed to parse project JSON for project_id {project_id}. Status: {response.status_code}, Response: {response.text}")
+                            continue
+                    else:
+                        project_data = project_cache[project_id]
                     
                     project = project_data.get("name")
                     if not project:
@@ -93,35 +103,40 @@ def insert_to_notion():
                     #默认金币设置为1
                     project_properties = {"金币":{"number": 1}}
                     if client_id:
-                        response = requests.get(
-                            f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/clients/{client_id}",
-                            auth=auth,
-                        )
-                        if response.ok:
-                            try:
-                                client_data = response.json()
-                            except (requests.exceptions.JSONDecodeError, ValueError) as e:
-                                print(f"Failed to parse client JSON for client_id {client_id}. Status: {response.status_code}, Response: {response.text}")
-                                client_data = None
-                            
-                            if client_data:
-                                client = client_data.get("name")
-                                if client:
-                                    client_emoji, client = split_emoji_from_string(client)
-                                    item["Client"] = [
-                                        notion_helper.get_relation_id(
-                                            client,
-                                            notion_helper.client_database_id,
-                                            {"type": "emoji", "emoji": client_emoji},
-                                        )
-                                    ]
-                                    project_properties["Client"] = {
-                                        "relation": [{"id": id} for id in item.get("Client")]
-                                    }
-                                else:
-                                    print(f"Client name not found for client_id {client_id}")
-                        else:
-                            print(f"Failed to get client info: {response.status_code}, {response.text}")
+                        # 使用缓存，避免重复请求相同的客户端
+                        if client_id not in client_cache:
+                            response = requests.get(
+                                f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/clients/{client_id}",
+                                auth=auth,
+                            )
+                            if response.ok:
+                                try:
+                                    client_data = response.json()
+                                    client_cache[client_id] = client_data
+                                except (requests.exceptions.JSONDecodeError, ValueError) as e:
+                                    print(f"Failed to parse client JSON for client_id {client_id}. Status: {response.status_code}, Response: {response.text}")
+                                    client_cache[client_id] = None
+                            else:
+                                print(f"Failed to get client info: {response.status_code}, {response.text}")
+                                client_cache[client_id] = None
+                        
+                        client_data = client_cache.get(client_id)
+                        if client_data:
+                            client = client_data.get("name")
+                            if client:
+                                client_emoji, client = split_emoji_from_string(client)
+                                item["Client"] = [
+                                    notion_helper.get_relation_id(
+                                        client,
+                                        notion_helper.client_database_id,
+                                        {"type": "emoji", "emoji": client_emoji},
+                                    )
+                                ]
+                                project_properties["Client"] = {
+                                    "relation": [{"id": id} for id in item.get("Client")]
+                                }
+                            else:
+                                print(f"Client name not found for client_id {client_id}")
                     item["Project"] = [
                         notion_helper.get_relation_id(
                             project,
@@ -142,6 +157,12 @@ def insert_to_notion():
                 )
                 icon = {"type": "emoji", "emoji": emoji}
                 notion_helper.create_page(parent=parent, properties=properties, icon=icon)
+        
+        # 打印缓存统计信息
+        print(f"\n=== API 调用统计 ===")
+        print(f"项目缓存数量: {len(project_cache)} 个不同项目")
+        print(f"客户端缓存数量: {len(client_cache)} 个不同客户端")
+        print(f"通过缓存节省了大量 API 调用！")
     else:
         print(f"get toggl data error {response.text}")
 
